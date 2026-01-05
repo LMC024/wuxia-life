@@ -2,47 +2,74 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <title>武侠人生 · Demo</title>
+  <title>武侠人生（季度回合）</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC",
-                   "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
-      background: #f5f5f5;
-      margin: 0;
-      padding: 16px;
-    }
-    .card {
-      background: white;
-      border-radius: 8px;
-      padding: 16px;
-      max-width: 720px;
-      margin: 0 auto;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    }
-    h1 {
-      margin-top: 0;
-    }
-    button {
-      padding: 10px 14px;
-      font-size: 16px;
-      margin-top: 12px;
-    }
-    #log {
-      margin-top: 16px;
-      white-space: pre-wrap;
-      line-height: 1.6;
-    }
+    body { font-family: -apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+      background:#f5f5f5; margin:0; padding:16px; }
+    .wrap { max-width: 980px; margin:0 auto; display:grid; grid-template-columns: 1.2fr 0.8fr; gap:12px; }
+    @media (max-width: 860px){ .wrap{ grid-template-columns:1fr; } }
+    .card { background:#fff; border-radius:12px; padding:14px; box-shadow:0 2px 10px rgba(0,0,0,.08); }
+    h1 { margin:0 0 10px; font-size:20px; }
+    h2 { margin:10px 0 6px; font-size:16px; }
+    .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+    button { padding:10px 12px; font-size:15px; border-radius:10px; border:1px solid #ccc; background:#fafafa; }
+    button.primary { background:#111; color:#fff; border-color:#111; }
+    button.danger { background:#fff5f5; border-color:#f3b4b4; }
+    .muted { color:#666; font-size:13px; }
+    .pill { display:inline-block; padding:2px 8px; border:1px solid #ddd; border-radius:999px; font-size:12px; background:#fafafa; }
+    #eventText { white-space:pre-wrap; line-height:1.6; }
+    #resultText { white-space:pre-wrap; line-height:1.6; }
+    #choices button { width:100%; text-align:left; margin-top:8px; }
+    #log { max-height: 280px; overflow:auto; background:#fafafa; border:1px dashed #ddd; border-radius:10px; padding:10px; }
+    .mono { font-family: ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace; font-size:13px; white-space:pre; }
   </style>
 </head>
 <body>
-  <div class="card">
-    <h1>武侠人生（季度回合 Demo）</h1>
-    <p>这是一个最小可运行测试页面。</p>
+  <div class="wrap">
+    <div class="card">
+      <div class="row" style="justify-content:space-between">
+        <div>
+          <h1>武侠人生（季度回合）</h1>
+          <div class="row">
+            <span class="pill" id="timePill">—</span>
+            <span class="pill" id="statusPill">—</span>
+          </div>
+        </div>
+        <div class="row">
+          <button id="btnNew" class="primary">新开一局</button>
+          <button id="btnSave">保存</button>
+          <button id="btnLoad">读取</button>
+          <button id="btnReset" class="danger">清空存档</button>
+        </div>
+      </div>
 
-    <button id="nextBtn">进入下一季度</button>
+      <h2>本季度事件</h2>
+      <div id="eventText" class="muted">点击“新开一局”。</div>
 
-    <div id="log">游戏尚未开始。</div>
+      <div style="margin-top:10px">
+        <div class="muted">选择：</div>
+        <div id="choices"></div>
+      </div>
+
+      <div id="resultText" class="muted" style="margin-top:10px"></div>
+
+      <div class="row" style="margin-top:10px; justify-content:flex-end">
+        <button id="btnNext" class="primary">进入下一季度</button>
+      </div>
+
+      <div class="muted" style="margin-top:8px">
+        规则：每回合=1季度。系统按状态从事件池抽一个事件，你选择后改变属性并记录日志（自动存档）。
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>状态面板</h2>
+      <div id="stats" class="mono"></div>
+
+      <h2 style="margin-top:12px">季度日志</h2>
+      <div id="log"></div>
+    </div>
   </div>
 
   <script src="game.js"></script>
