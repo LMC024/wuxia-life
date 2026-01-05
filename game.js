@@ -1,98 +1,82 @@
-// ====== 武侠人生：时间系统（春夏秋冬 + 年龄增长） ======
-const STORAGE_KEY = "wuxia_life_save_v3_time";
+// ===== 武侠人生：时间系统 + 中文属性面板 =====
+const STORAGE_KEY = "wuxia_life_save_v4_stats";
 
-// ---- 小工具 ----
+// ---------- 工具 ----------
 function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
 function randInt(a, b) { return Math.floor(Math.random() * (b - a + 1)) + a; }
 
+// ---------- 季节 ----------
 const SEASONS = ["春", "夏", "秋", "冬"];
-function seasonName(quarter) { // quarter: 1..4
-  return SEASONS[(quarter - 1) % 4];
-}
+function seasonName(q) { return SEASONS[(q - 1) % 4]; }
 
-// ---- 初始状态：从出生开始 ----
+// ---------- 初始状态（出生） ----------
 function newState() {
   return {
-    turn: 0,      // 已过的季度数（回合数）
-    age: 0,       // 年龄，从 0 岁开始
-    yearNo: 0,    // 第几年（0=出生当年）
-    quarter: 1,   // 1..4 -> 春夏秋冬（默认从春开始）
+    turn: 0,
+    age: 0,
+    yearNo: 0,
+    quarter: 1,
     alive: true,
     ended: false,
 
-    // 先保留一套属性（后面事件系统会用到）
-    stats: {
-      health: 80,
-      stamina: 70,
-      money: 30,
-      skill: 10,
-      innerPower: 10,
-      fame: 0,
-      morality: 10,
-      grudge: 0,
-    },
-    flags: {
-      wanted: false,
-      secretManual: false,
+    // ===== 基础状态 =====
+    base: {
+      health: 80,     // 血量
+      mana: 40,       // 蓝量（内力）
+      money: 20,      // 银子
     },
 
-    // 日志：用于记录“过一年/过一岁”等关键节点
+    // ===== 属性栏 =====
+    attrs: {
+      // 第一列
+      strength: 50,   // 臂力
+      constitution: 50, // 体质
+      luck: 50,       // 运气
+      insight: 50,    // 悟性
+
+      // 第二列
+      fame: 0,        // 声望
+      appearance: 50, // 外貌
+      knowledge: 10,  // 学识
+      morality: 0,    // 善恶（负=恶，正=善）
+    },
+
     log: []
   };
 }
 
-// ---- 规范化（防止属性越界）----
+// ---------- 规范化 ----------
 function normalize(s) {
-  const st = s.stats;
-  st.health = clamp(st.health, 0, 100);
-  st.stamina = clamp(st.stamina, 0, 100);
-  st.money = Math.max(0, st.money);
-  st.skill = clamp(st.skill, 0, 999);
-  st.innerPower = clamp(st.innerPower, 0, 999);
-  st.fame = clamp(st.fame, -100, 100);
-  st.morality = clamp(st.morality, -100, 100);
-  st.grudge = clamp(st.grudge, 0, 100);
+  s.base.health = clamp(s.base.health, 0, 100);
+  s.base.mana   = clamp(s.base.mana, 0, 100);
+  s.base.money = Math.max(0, s.base.money);
 
-  if (st.health <= 0) s.alive = false;
+  for (const k in s.attrs) {
+    s.attrs[k] = clamp(s.attrs[k], -100, 100);
+  }
+
+  if (s.base.health <= 0) s.alive = false;
 }
 
-// ---- 日志写入 ----
-function pushLog(state, title, text, eventId = "") {
+// ---------- 日志 ----------
+function pushLog(state, title, text) {
   state.log.push({
     t: state.turn,
     age: state.age,
     yearNo: state.yearNo,
-    quarter: state.quarter,
     season: seasonName(state.quarter),
     title,
-    text,
-    eventId
+    text
   });
 }
 
-// ---- 结局检查（先保留最简单的）----
-function checkEnding(state) {
-  if (!state.alive) {
-    state.ended = true;
-    pushLog(state, "结局：身死江湖", "伤势积重，终究倒在风里。", "ending_dead");
-    return;
-  }
-  // 先留一个很软的“阶段结束”条件：过 5 年就算阶段结局（方便你测试时间系统）
-  if (state.yearNo >= 5) {
-    state.ended = true;
-    pushLog(state, "阶段结局：五年已过", "你已从襁褓走到少年，江湖的大门缓缓打开。", "ending_5y");
-  }
-}
-
-// ---- 核心：推进一季度（换季；四季一年；年龄+1）----
+// ---------- 时间推进 ----------
 function advanceQuarter(state) {
   if (state.ended) return;
 
-  // 进入下一季度
   state.turn += 1;
   state.quarter += 1;
 
-  // 从冬到春：过一年 + 年龄+1
   if (state.quarter > 4) {
     state.quarter = 1;
     state.yearNo += 1;
@@ -101,27 +85,22 @@ function advanceQuarter(state) {
     pushLog(
       state,
       "年龄增长",
-      `四季轮转，你长大了一岁。\n当前年龄：${state.age} 岁（第 ${state.yearNo} 年）`,
-      "age_up"
+      `四季轮转，你长大了一岁。\n当前年龄：${state.age} 岁`
     );
   }
 
-  // 自然结算（占位：先保留，后面事件会更丰富）
-  state.stats.stamina += randInt(6, 14);
-  state.stats.health += randInt(0, 4);
-  state.stats.grudge -= randInt(0, 2);
+  // 自然消耗 / 恢复（占位）
+  state.base.mana += randInt(2, 6);
+  state.base.health += randInt(0, 3);
 
   normalize(state);
-  checkEnding(state);
 }
 
-// ===== UI 绑定（兼容你现在的 index.html）=====
+// ---------- UI ----------
 const el = {
   timePill: document.getElementById("timePill"),
   statusPill: document.getElementById("statusPill"),
   eventText: document.getElementById("eventText"),
-  choices: document.getElementById("choices"),
-  resultText: document.getElementById("resultText"),
   stats: document.getElementById("stats"),
   log: document.getElementById("log"),
   btnNew: document.getElementById("btnNew"),
@@ -133,118 +112,75 @@ const el = {
 
 let STATE = null;
 
-// ---- 存档 ----
+// ---------- 存档 ----------
 function save() {
-  if (!STATE) return;
   localStorage.setItem(STORAGE_KEY, JSON.stringify(STATE));
 }
 function load() {
-  const raw = localStorage.getItem(STORAGE_KEY);
-  if (!raw) return null;
-  try { return JSON.parse(raw); } catch { return null; }
+  const r = localStorage.getItem(STORAGE_KEY);
+  return r ? JSON.parse(r) : null;
 }
 function clearSave() {
   localStorage.removeItem(STORAGE_KEY);
 }
 
-// ---- 渲染 ----
+// ---------- 渲染 ----------
 function render() {
   if (!STATE) {
     el.timePill.textContent = "未开始";
     el.statusPill.textContent = "—";
     el.eventText.textContent = "点击“新开一局”。";
-    el.choices.innerHTML = "";
-    el.resultText.textContent = "";
     el.stats.textContent = "";
     el.log.innerHTML = "";
-    el.btnNext.disabled = true;
     return;
   }
 
-  el.btnNext.disabled = STATE.ended;
+  const s = seasonName(STATE.quarter);
+  el.timePill.textContent = `T${STATE.turn} · ${STATE.age}岁 · 第${STATE.yearNo}年 · ${s}`;
+  el.statusPill.textContent = STATE.alive ? "生" : "亡";
 
-  const sname = seasonName(STATE.quarter);
-  el.timePill.textContent = `T${STATE.turn} · ${STATE.age}岁 · 第${STATE.yearNo}年 · ${sname}`;
-  el.statusPill.textContent = STATE.ended ? "结局已定" : (STATE.alive ? "生" : "亡");
-
-  // 状态面板（先保留基础属性）
-  const st = STATE.stats;
+  // ===== 状态面板（中文）=====
   el.stats.textContent =
-`age        ${STATE.age}
-yearNo     ${STATE.yearNo}
-season     ${sname}
+`【基础状态】
+年龄：${STATE.age}
+血量：${STATE.base.health}
+蓝量：${STATE.base.mana}
+银子：${STATE.base.money}
 
-health     ${st.health}
-stamina    ${st.stamina}
-money      ${st.money}
-skill      ${st.skill}
-innerPower ${st.innerPower}
-fame       ${st.fame}
-morality   ${st.morality}
-grudge     ${st.grudge}
+【属性栏】
+臂力：${STATE.attrs.strength}      声望：${STATE.attrs.fame}
+体质：${STATE.attrs.constitution}  外貌：${STATE.attrs.appearance}
+运气：${STATE.attrs.luck}      学识：${STATE.attrs.knowledge}
+悟性：${STATE.attrs.insight}    善恶：${STATE.attrs.morality}
+`;
 
-wanted     ${STATE.flags.wanted}
-manual     ${STATE.flags.secretManual}`;
+  el.eventText.textContent = "当前仅测试时间与属性系统。";
 
-  // 事件区（这一轮先做时间系统，所以这里给占位提示）
-  if (STATE.ended) {
-    el.eventText.textContent = "这一局已经结束。你可以“新开一局”。";
-    el.choices.innerHTML = "";
-    el.resultText.textContent = "";
-  } else {
-    el.eventText.textContent = `当前：第${STATE.yearNo}年 · ${sname}。\n（下一步我们再把“随机事件系统”接回来。）`;
-    el.choices.innerHTML = "";
-    el.resultText.textContent = "";
-  }
-
-  // 日志区（最近在上）
-  el.log.innerHTML = STATE.log.slice().reverse().map(x => {
-    const head = `T${x.t} · ${x.age}岁 · 第${x.yearNo}年${x.season} · ${x.title}`;
-    const body = (x.text || "").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
-    return `<div style="margin-bottom:10px">
-      <div class="muted"><strong>${head}</strong></div>
-      <div style="white-space:pre-wrap">${body}</div>
-    </div>`;
-  }).join("");
+  el.log.innerHTML = STATE.log.slice().reverse().map(x =>
+    `<div>
+      <b>${x.age}岁 · ${x.season} · ${x.title}</b><br/>
+      ${x.text}
+    </div><br/>`
+  ).join("");
 }
 
-// ---- 按钮行为 ----
+// ---------- 按钮 ----------
 el.btnNew.onclick = () => {
   STATE = newState();
-  // 可选：出生即记一条日志（便于你确认从 0 岁开始）
-  pushLog(STATE, "出生", "你来到世上，哭声很响。", "born");
-  save();
-  render();
+  pushLog(STATE, "出生", "你降生于世，命运尚未书写。");
+  save(); render();
 };
 
 el.btnNext.onclick = () => {
-  if (!STATE || STATE.ended) return;
   advanceQuarter(STATE);
-  save();
-  render();
+  save(); render();
 };
 
-el.btnSave.onclick = () => {
-  save();
-  alert("已保存（localStorage）。");
-};
+el.btnSave.onclick = () => { save(); alert("已保存"); };
+el.btnLoad.onclick = () => { STATE = load(); render(); };
+el.btnReset.onclick = () => { clearSave(); STATE = null; render(); };
 
-el.btnLoad.onclick = () => {
-  const s = load();
-  if (!s) { alert("没有找到存档。"); return; }
-  STATE = s;
-  alert("已读取存档。");
-  render();
-};
-
-el.btnReset.onclick = () => {
-  clearSave();
-  STATE = null;
-  alert("存档已清空。");
-  render();
-};
-
-// ---- 自动读取 ----
+// ---------- 自动读取 ----------
 (() => {
   const s = load();
   if (s) STATE = s;
